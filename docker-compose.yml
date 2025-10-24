@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  php:
+    build:
+      context: ./travell-order-api
+      dockerfile: Dockerfile
+    container_name: travell-order-php
+    working_dir: /var/www
+    volumes:
+      - ./travell-order-api:/var/www:cached
+      - travell_vendor:/var/www/vendor       # named volume para preservar vendor
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: travell-nginx
+    depends_on:
+      - php
+    ports:
+      - "8000:80"
+    volumes:
+      - ./travell-order-api:/var/www:ro
+      - ./travell-order-api/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./travell-order-front
+      dockerfile: Dockerfile
+    container_name: travell-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./travell-order-front:/app:cached
+      - travell_front_node:/app/node_modules
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8
+    container_name: travell-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD="yes"
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=travell_order_manager
+      - DB_USERNAME=root
+      - DB_PASSWORD=
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+  travell_vendor:
+  travell_front_node:
+
+networks:
+  app-network:
+    driver: bridge
